@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Educational course content",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "category": { "type": "string" },
+        "instructorId": { "type": "string" },
+        "views": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "instructorId"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Individual lesson within a course",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "title": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "content": { "type": "string" },
+        "views": { "type": "integer" },
+        "order": { "type": "integer" }
+      },
+      "required": ["courseId", "title", "videoUrl"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Assessment for a lesson",
+      "type": "object",
+      "properties": {
+        "lessonId": { "type": "string" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "question": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctAnswer": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "ForumPost": {
+      "title": "Forum Post",
+      "description": "Community discussion post",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "title", "content"]
+    },
+    "Note": {
+      "title": "Study Note",
+      "description": "Educational notes for subjects",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "grade": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "subject", "grade"]
+    },
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "Educational articles and news",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "authorName": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content"]
+    },
+    "UserProgress": {
+      "title": "User Progress",
+      "description": "Tracking user completion and scores",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "contentId": { "type": "string" },
+        "type": { "type": "string", "enum": ["video", "quiz"] },
+        "completed": { "type": "boolean" },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "contentId", "type"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "User like for content",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "contentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "contentId"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comment for content",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "contentId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "contentId", "text"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Course metadata"
+    },
+    "/courses/{courseId}/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Lessons within a course"
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Quizzes for lessons"
+    },
+    "/forum/{postId}": {
+      "schema": "ForumPost",
+      "description": "Community forum posts"
+    },
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Subject-wise study notes"
+    },
+    "/blogs/{blogId}": {
+      "schema": "BlogPost",
+      "description": "Educational blog posts"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Course",
+      "description": "Subject and video content"
+    },
+    "/ncert/{ncertId}": {
+      "schema": "Note",
+      "description": "NCERT Solutions"
+    },
+    "/progress/{progressId}": {
+      "schema": "UserProgress",
+      "description": "User progress tracking"
+    },
+    "/otps/{email}": {
+      "schema": "object",
+      "description": "Temporary OTP storage for verification (System Only)"
+    },
+    "/likes/{likeId}": {
+      "schema": "Like",
+      "description": "Video/Content likes"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Video/Content comments"
+    }
+  }
+}

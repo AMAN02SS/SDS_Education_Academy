@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #d4af37; /* Gold */
+  --color-primary-dark: #b8860b;
+  --color-secondary: #3d1a4b; /* Deep Purple */
+  --color-accent: #7b2cbf; /* Vibrant Purple */
+  --color-success: #00ff87;
+  
+  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+@layer base {
+  body {
+    @apply bg-[#f8fafc] text-slate-900 font-sans selection:bg-primary/30;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-linear-to-r from-primary to-primary-dark;
+  }
+  .bg-mesh {
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(0, 210, 255, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 0, 128, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(0, 255, 135, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(58, 123, 213, 0.1) 0px, transparent 50%);
+  }
+}

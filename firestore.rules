@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    //   - uid: string
+    //   - email: string
+    //   - role: string (optional)
+    // Collection: notes
+    //   - title: string
+    //   - subject: string
+    //   - grade: string
+    //   - content: string
+    //   - pdfUrl: string
+    //   - author: string
+    //   - date: string
+    //   - downloads: string
+    // Collection: comments
+    //   - userId: string
+    //   - userName: string
+    //   - userPhoto: string
+    //   - contentId: string
+    //   - text: string
+    //   - createdAt: timestamp
+    // Collection: likes
+    //   - userId: string
+    //   - contentId: string
+    //   - createdAt: timestamp
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "mayanksikarwar1999@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidNCERT(data) {
+      return data.keys().hasAll(['title', 'subject', 'grade']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.subject is string &&
+             data.grade is string;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['title', 'subject', 'grade', 'content']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.subject is string &&
+             data.grade is string &&
+             data.content is string;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['userId', 'contentId', 'text']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.contentId is string && data.contentId.size() > 0 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000;
+    }
+
+    function isValidLike(data) {
+      return data.keys().hasAll(['userId', 'contentId']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.contentId is string && data.contentId.size() > 0;
+    }
+
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['title', 'subject', 'grade']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.subject is string &&
+             data.grade is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == resource.data.role; // Prevent self-role-escalation
+      allow update: if isAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if true; // Publicly viewable
+      allow write: if isAdmin();
+      
+      match /lessons/{lessonId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    match /quizzes/{quizId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidQuiz(request.resource.data);
+      allow update: if isAdmin() && isValidQuiz(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /forum/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      
+      match /answers/{answerId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /notes/{noteId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidNote(request.resource.data);
+      allow update: if isAdmin() && isValidNote(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ncert/{ncertId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidNCERT(request.resource.data);
+      allow update: if isAdmin() && isValidNCERT(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /progress/{progressId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && 
+                      request.resource.data.userId == resource.data.userId;
+    }
+
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidLike(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidComment(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidComment(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}

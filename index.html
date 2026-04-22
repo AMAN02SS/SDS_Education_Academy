@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SDS Education Academy</title>
+    <script>
+      // Polyfills for environment compatibility
+      window.global = window;
+      window.process = { 
+        env: { NODE_ENV: 'development' },
+        browser: true,
+        version: '',
+        nextTick: function(fn) { setTimeout(fn, 0); }
+      };
+
+      // Prevent libraries from overwriting the read-only 'fetch' property
+      // by defining it explicitly if it's missing or if we want to guard it.
+      if (window.fetch) {
+        const originalFetch = window.fetch;
+        try {
+          Object.defineProperty(window, 'fetch', {
+            configurable: false,
+            enumerable: true,
+            get: () => originalFetch
+          });
+        } catch (e) {
+          console.warn('Could not lock fetch property, but continuing...');
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
