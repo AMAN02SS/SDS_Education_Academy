@@ -1,4 +1,4 @@
-import admin from "firebase-admin";
+import crypto from "crypto";
 
 export default async function handler(req: any, res: any) {
   // CORS Headers
@@ -19,41 +19,24 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!admin.apps.length) {
-    try {
-      const firebaseConfig = require("../firebase-applet-config.json");
-      admin.initializeApp({
-        projectId: firebaseConfig.projectId,
-      });
-    } catch (e) {
-      console.error("Failed to init Firebase Admin:", e);
-    }
-  }
+  const { email, otp, hash, expiresAt } = req.body;
 
-  const db = admin.firestore();
-  const { email, otp } = req.body;
-
-  if (!email || !otp) {
-    return res.status(400).json({ error: "Email and OTP are required" });
+  if (!email || !otp || !hash || !expiresAt) {
+    return res.status(400).json({ error: "Missing required verification data." });
   }
 
   try {
-    const otpDoc = await db.collection("otps").doc(email).get();
-    if (!otpDoc.exists) {
-      return res.status(400).json({ error: "No OTP found for this email." });
-    }
-
-    const data = otpDoc.data();
-    if (data?.otp !== String(otp).trim()) {
-      return res.status(400).json({ error: "Invalid OTP code." });
-    }
-
-    if (Date.now() > data?.expiresAt) {
+    if (Date.now() > Number(expiresAt)) {
       return res.status(400).json({ error: "OTP has expired." });
     }
 
-    // Clear OTP after successful verification
-    await db.collection("otps").doc(email).delete();
+    const secret = process.env.GMAIL_APP_PASSWORD || 'fallback-secret-if-missing';
+    const dataToHash = `${email}.${String(otp).trim()}.${expiresAt}`;
+    const expectedHash = crypto.createHmac('sha256', secret).update(dataToHash).digest('hex');
+
+    if (hash !== expectedHash) {
+      return res.status(400).json({ error: "Invalid OTP code." });
+    }
 
     res.json({ success: true });
   } catch (error) {

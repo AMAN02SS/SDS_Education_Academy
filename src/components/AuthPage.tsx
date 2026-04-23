@@ -13,6 +13,7 @@ export const AuthPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
+  const [verificationData, setVerificationData] = useState<{hash: string, expiresAt: string} | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
@@ -74,13 +75,20 @@ export const AuthPage: React.FC = () => {
             throw new Error(result.error || "Failed to send OTP");
           }
           
+          // Store hash and expiresAt in state
+          setVerificationData({ hash: result.hash, expiresAt: result.expiresAt });
           setOtpStep('verify');
         } else {
           // Verify OTP and complete signup
           const verifyRes = await fetch('/api/verify-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, otp })
+            body: JSON.stringify({ 
+              email, 
+              otp,
+              hash: verificationData?.hash,
+              expiresAt: verificationData?.expiresAt 
+            })
           });
           
           const verifyResult = await verifyRes.json();
@@ -89,6 +97,7 @@ export const AuthPage: React.FC = () => {
           }
 
           // OTP is verified, create Firebase user
+
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(userCredential.user, { displayName: fullName });
           navigate(from, { replace: true });

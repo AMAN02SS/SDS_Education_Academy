@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import admin from "firebase-admin";
+import crypto from "crypto";
 
 const BLOCKED_DOMAINS = [
   "tempmail.com", "throwawaymail.com", "mailinator.com", "10minutemail.com",
@@ -7,7 +7,7 @@ const BLOCKED_DOMAINS = [
 ];
 
 export default async function handler(req: any, res: any) {
-  // Add CORS headers for good measure just in case
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -25,18 +25,6 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!admin.apps.length) {
-    try {
-      const firebaseConfig = require("../firebase-applet-config.json");
-      admin.initializeApp({
-        projectId: firebaseConfig.projectId,
-      });
-    } catch (e) {
-      console.error("Failed to init Firebase Admin:", e);
-    }
-  }
-
-  const db = admin.firestore();
   const { email } = req.body;
 
   if (!email) {
@@ -51,19 +39,18 @@ export default async function handler(req: any, res: any) {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-  try {
-    // Store OTP in Firestore
-    await db.collection("otps").doc(email).set({
-      otp,
-      expiresAt,
-    });
+  // Generate a hash so we can verify statelessly without a database
+  const secret = process.env.GMAIL_APP_PASSWORD || 'fallback-secret-if-missing';
+  const dataToHash = `${email}.${otp}.${expiresAt}`;
+  const hash = crypto.createHmac('sha256', secret).update(dataToHash).digest('hex');
 
+  try {
     // Send Email
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: "s.d.s.educationacademy@gmail.com",
-        pass: process.env.GMAIL_APP_PASSWORD, // Must be set in Vercel UI
+        pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
 
@@ -82,9 +69,9 @@ export default async function handler(req: any, res: any) {
       `,
     });
 
-    res.json({ success: true, message: "OTP sent successfully" });
+    res.json({ success: true, message: "OTP sent successfully", hash, expiresAt });
   } catch (error: any) {
     console.error("Error sending OTP:", error);
-    res.status(500).json({ error: "Failed to send OTP. Please ensure GMAIL_APP_PASSWORD is set correctly." });
+    res.status(500).json({ error: "Failed to send OTP. Please ensure GMAIL_APP_PASSWORD is set correctly in Vercel." });
   }
 }
