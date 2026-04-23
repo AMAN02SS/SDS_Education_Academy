@@ -1,4 +1,10 @@
+import nodemailer from "nodemailer";
 import crypto from "crypto";
+
+const BLOCKED_DOMAINS = [
+  "tempmail.com", "throwawaymail.com", "mailinator.com", "10minutemail.com",
+  "guerrillamail.com", "sharklasers.com", "dispostable.com", "yopmail.com"
+];
 
 export default async function handler(req: any, res: any) {
   // CORS Headers
@@ -19,28 +25,68 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { email, otp, hash, expiresAt } = req.body;
+  const { email } = req.body;
 
-  if (!email || !otp || !hash || !expiresAt) {
-    return res.status(400).json({ error: "Missing required verification data." });
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
   }
 
+  const domain = email.split("@")[1];
+  if (BLOCKED_DOMAINS.includes(domain)) {
+    return res.status(403).json({ error: "Temporary or fake email addresses are not allowed." });
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+  // Generate a hash so we can verify statelessly without a database
+  const secret = process.env.GMAIL_APP_PASSWORD || 'fallback-secret-if-missing';
+  const dataToHash = `${email}.${otp}.${expiresAt}`;
+  const hash = crypto.createHmac('sha256', secret).update(dataToHash).digest('hex');
+
   try {
-    if (Date.now() > Number(expiresAt)) {
-      return res.status(400).json({ error: "OTP has expired." });
+    // Send Email
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: "s.d.s.educationacademy@gmail.com",
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+
+    try {
+      await transporter.verify();
+    } catch (verifyError: any) {
+      console.error("Transporter Verify Error:", verifyError);
+      return res.status(500).json({ 
+        error: "SMTP Authentication Failed.", 
+        details: verifyError.message 
+      });
     }
 
-    const secret = process.env.GMAIL_APP_PASSWORD || 'fallback-secret-if-missing';
-    const dataToHash = `${email}.${String(otp).trim()}.${expiresAt}`;
-    const expectedHash = crypto.createHmac('sha256', secret).update(dataToHash).digest('hex');
+    await transporter.sendMail({
+      from: '"SDS Education Academy" <s.d.s.educationacademy@gmail.com>',
+      to: email,
+      subject: `Your OTP for SDS Academy: ${otp}`,
+      text: `Welcome to SDS Education Academy! Your OTP for signup is: ${otp}. It expires in 5 minutes.`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #6366f1;">Welcome to SDS Education Academy!</h2>
+          <p>Use the code below to verify your email address:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0;">${otp}</div>
+          <p style="font-size: 12px; color: #64748b;">This code will expire in 5 minutes. If you didn't request this, please ignore this email.</p>
+        </div>
+      `,
+    });
 
-    if (hash !== expectedHash) {
-      return res.status(400).json({ error: "Invalid OTP code." });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Error verifying OTP:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.json({ success: true, message: "OTP sent successfully", hash, expiresAt });
+  } catch (error: any) {
+    console.error("Error sending OTP:", error);
+    res.status(500).json({ 
+      error: "Failed to send OTP.", 
+      details: error?.message || "Unknown error occurred" 
+    });
   }
 }

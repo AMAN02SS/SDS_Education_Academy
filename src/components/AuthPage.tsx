@@ -72,7 +72,7 @@ export const AuthPage: React.FC = () => {
           
           const result = await response.json();
           if (!response.ok) {
-            throw new Error(result.error || "Failed to send OTP");
+            throw new Error(`${result.error} ${result.details ? `Details: ${result.details}` : ''}`);
           }
           
           // Store hash and expiresAt in state
