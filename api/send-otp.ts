@@ -47,12 +47,24 @@ export default async function handler(req: any, res: any) {
   try {
     // Send Email
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: "s.d.s.educationacademy@gmail.com",
         pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
+
+    try {
+      await transporter.verify();
+    } catch (verifyError: any) {
+      console.error("Transporter Verify Error:", verifyError);
+      return res.status(500).json({ 
+        error: "SMTP Authentication Failed.", 
+        details: verifyError.message 
+      });
+    }
 
     await transporter.sendMail({
       from: '"SDS Education Academy" <s.d.s.educationacademy@gmail.com>',
@@ -72,6 +84,9 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: "OTP sent successfully", hash, expiresAt });
   } catch (error: any) {
     console.error("Error sending OTP:", error);
-    res.status(500).json({ error: "Failed to send OTP. Please ensure GMAIL_APP_PASSWORD is set correctly in Vercel." });
+    res.status(500).json({ 
+      error: "Failed to send OTP.", 
+      details: error?.message || "Unknown error occurred" 
+    });
   }
 }
